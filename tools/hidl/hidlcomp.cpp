@@ -1898,7 +1898,7 @@ bool ParamInfo::write_mapinfo_check(int indents, const char* ctxvar)
     return hasOutput;
 }
 
-void ParamInfo::write_esp_marshall(bool isRpc, bool encodeXml, bool checkVer, int indents)
+void ParamInfo::write_esp_marshall(bool isRpc, bool encodeXml, bool checkVer, int indents, bool encodeJson)
 {
     const char *soap_path=getMetaString("soap_path", NULL);
     char *path = (soap_path!=NULL) ? strdup(soap_path) : NULL;
@@ -1969,7 +1969,7 @@ void ParamInfo::write_esp_marshall(bool isRpc, bool encodeXml, bool checkVer, in
             else
             {
                 outf("%s, \"\", %s", encode, prefix);
-                if (getMetaInt("json_inline"))
+                if (getMetaInt("json_inline", !encodeJson))
                     outs(", false");
                 outs(");\n");
             }
@@ -4359,10 +4359,19 @@ void EspMessageInfo::write_esp()
 
         if (hasMapInfo())
             outf("\t\tdouble clientVer = ctx ? ctx->getClientVersion() : -1;\n");
+
+        const char * name = getName();
+        const char * nameEnding = &name[strlen(name) - 2];
+        bool isResponseEx = strcmp(nameEnding, "Ex") == 0;
+
         for (pi=getParams();pi!=NULL;pi=pi->next)
         {
             if (!pi->getMetaInt("attribute"))
-                pi->write_esp_marshall(false, encodeXML, true, 2);
+            {
+                bool isResponseChild = strcmpi(pi->getXmlTag(), "Response") == 0;
+                bool encodeJSON = !(isResponseEx && isResponseChild);
+                pi->write_esp_marshall(false, encodeXML, true, 2, encodeJSON);
+            }
         }
         outs("\t}\n");
     }
